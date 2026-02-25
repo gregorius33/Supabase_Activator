@@ -23,8 +23,9 @@ create table if not exists public."BulChimBeon" (
 ```
 
 - 스키마는 기본값인 `public`을 가정합니다.
-- 각 실행 시마다 `last_ping`에 현재 시간(UTC 기준), `note`에 간단한 메모 문자열이 들어갑니다.
-- 매 실행마다 **새로운 행을 INSERT**하는 방식이라, Table Editor에서 실행 이력을 쉽게 확인할 수 있습니다.
+- **동작:** 첫 실행 시 한 행을 **INSERT**하고, 이후 실행부터는 같은 행을 **UPDATE**합니다.  
+  따라서 테이블에는 항상 **한 행만** 유지되며, `last_ping`이 매 실행 시각(UTC)으로 갱신됩니다.
+- Supabase REST API의 UPSERT(`Prefer: resolution=merge-duplicates`)를 사용하며, 고정된 `id` 한 개로 같은 행을 덮어씁니다.
 
 > RLS(행 레벨 보안)를 사용하는 경우, 이 프로젝트는 **Service Role Key**로만 접근합니다.  
 > Service Role Key는 서버용 비밀키이므로, **절대 클라이언트 코드에 넣지 말고 GitHub Secrets로만 사용**하세요.
@@ -69,12 +70,13 @@ Python 스크립트 `BulChimBeon.py`는 위 값들을 **환경 변수**로부터
 이 스크립트는 다음과 같이 동작합니다.
 
 1. 환경 변수에서 Supabase URL, Service Role Key, 테이블 이름을 읽습니다.
-2. `SUPABASE_URL/rest/v1/BulChimBeon` 엔드포인트로 `POST` 요청을 보냅니다.
+2. `SUPABASE_URL/rest/v1/BulChimBeon` 엔드포인트로 **UPSERT** 요청을 보냅니다.
 3. 요청 바디에는:
+   - `id`: 고정 UUID (한 행만 유지하기 위한 키)
    - `last_ping`: 현재 UTC 시각 (ISO 8601 문자열)
    - `note`: `"GitHub Actions BulChimBeon"` 같은 간단한 문자열
-4. HTTP 요청이 실패하면 **비정상 종료(exit code != 0)** 하여
-   - GitHub Actions에서 해당 실행을 **실패(빨간불)** 로 표시하게 합니다.
+4. 첫 실행 시 해당 행이 없으면 **INSERT**, 있으면 **UPDATE**되어 행이 늘어나지 않습니다.
+5. HTTP 요청이 실패하면 **비정상 종료(exit code != 0)** 하여 GitHub Actions에서 해당 실행을 **실패(빨간불)** 로 표시하게 합니다.
 
 이렇게 하면:
 
@@ -104,8 +106,8 @@ Python 스크립트 `BulChimBeon.py`는 위 값들을 **환경 변수**로부터
 ### 5-1. Supabase에서 확인
 
 - Supabase 대시보드 → Table Editor → `BulChimBeon` 테이블을 열면
-  - 각 실행 시점마다 추가된 행과 `last_ping` 값을 볼 수 있습니다.
-- 실행 주기(월/목 9시 KST)에 맞게 행이 늘어나고 있으면, 자동 깨우기가 잘 동작하는 것입니다.
+  - `BulChimBeon` 테이블에는 **한 행만** 있으며, 그 행의 `last_ping`이 매 실행 시각으로 갱신됩니다.
+- 월/목 9시(KST) 이후에 `last_ping`이 해당 시각 근처로 바뀌어 있으면 자동 깨우기가 잘 동작하는 것입니다.
 
 ### 5-2. GitHub Actions에서 확인
 

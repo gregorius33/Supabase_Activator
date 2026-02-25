@@ -12,6 +12,10 @@ def get_env(name: str, default: str | None = None) -> str:
     return value
 
 
+# BulChimBeon 테이블에서 항상 갱신할 단일 행의 고정 ID (첫 실행 시 INSERT, 이후 UPDATE)
+HEARTBEAT_ROW_ID = "11111111-1111-1111-1111-111111111111"
+
+
 def main() -> None:
     try:
         supabase_url = get_env("SUPABASE_URL")
@@ -19,7 +23,7 @@ def main() -> None:
         service_role_key = os.getenv("SUPABASE_SECRET_KEY") or os.getenv("SUPABASE_SERVICE_ROLE_KEY")
         if not service_role_key or not service_role_key.strip():
             raise ValueError("SUPABASE_SERVICE_ROLE_KEY 또는 SUPABASE_SECRET_KEY 중 하나를 설정해 주세요.")
-        table_name = os.getenv("SUPABASE_TABLE", "BulChimBeon")
+        table_name = (os.getenv("SUPABASE_TABLE") or "").strip() or "BulChimBeon"
     except ValueError as e:
         print(f"[BulChimBeon] 환경 변수 오류: {e}", file=sys.stderr)
         sys.exit(1)
@@ -28,6 +32,7 @@ def main() -> None:
 
     now_utc = datetime.now(timezone.utc).isoformat()
     payload = {
+        "id": HEARTBEAT_ROW_ID,
         "last_ping": now_utc,
         "note": "GitHub Actions BulChimBeon",
     }
@@ -36,11 +41,11 @@ def main() -> None:
         "apikey": service_role_key,
         "Authorization": f"Bearer {service_role_key}",
         "Content-Type": "application/json",
-        "Prefer": "return=representation",
+        "Prefer": "return=representation,resolution=merge-duplicates",
     }
 
     print(f"[BulChimBeon] Supabase 엔드포인트: {endpoint}")
-    print(f"[BulChimBeon] 전송 시각(UTC): {now_utc}")
+    print(f"[BulChimBeon] 전송 시각(UTC): {now_utc} (UPSERT: 기존 행 있으면 UPDATE, 없으면 INSERT)")
 
     try:
         response = requests.post(endpoint, json=payload, headers=headers, timeout=10)
