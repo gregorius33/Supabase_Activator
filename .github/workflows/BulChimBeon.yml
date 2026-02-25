@@ -1,0 +1,34 @@
+name: BulChimBeon
+
+on:
+  schedule:
+    # 매주 월요일, 목요일 00:00 UTC (KST 09:00)
+    - cron: "0 0 * * 1,4"
+  # 수동 실행용 트리거 (테스트 시 편리)
+  workflow_dispatch:
+
+jobs:
+  run-bulchimbeon:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run BulChimBeon script
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          # 기본값 BulChimBeon을 그대로 사용하지 않고 다른 테이블을 쓰고 싶다면,
+          # 리포지토리 Secrets에 SUPABASE_TABLE을 추가해서 사용 가능
+          SUPABASE_TABLE: ${{ secrets.SUPABASE_TABLE }}
+        run: python BulChimBeon.py
+
