@@ -1,4 +1,0 @@
-SUPABASE_URL=[https://dtcxxsnxqafqnwgghedy.supabase.co]
-[postgresql://postgres.dtcxxsnxqafqnwgghedy:elqlvotmdnjem@aws-1-ap-southeast-1.pooler.supabase.com:6543/postgres?sslmode=require&pgbouncer=true]
-SUPABASE_SERVICE_ROLE_KEY=[eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0Y3h4c254cWFmcW53Z2doZWR5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MTA3Njk1OSwiZXhwIjoyMDg2NjUyOTU5fQ._asb5vdPzaVN2jws6hw-r3SEuFg8Yu8v4YNEsppbOWY]
-[sb_secret_3drJ-4inNClWvxsYqP4FAA_y6QlsP00]
