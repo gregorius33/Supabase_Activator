@@ -27,6 +27,7 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
           # 기본값 BulChimBeon을 그대로 사용하지 않고 다른 테이블을 쓰고 싶다면,
           # 리포지토리 Secrets에 SUPABASE_TABLE을 추가해서 사용 가능
           SUPABASE_TABLE: ${{ secrets.SUPABASE_TABLE }}

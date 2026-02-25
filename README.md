@@ -33,16 +33,21 @@ create table if not exists public."BulChimBeon" (
 
 ## 2. 환경 변수 / GitHub Secrets 설정
 
-### Supabase에서 URL과 Service Role Key 얻기
+### Supabase에서 URL과 API 키 얻기
 
 1. [Supabase 대시보드](https://supabase.com/dashboard)에 로그인한 뒤, 사용할 **프로젝트**를 선택합니다.
 2. 왼쪽 사이드바 맨 아래 **톱니바퀴 아이콘** → **Project Settings**로 이동합니다.
 3. 왼쪽 메뉴에서 **API**를 클릭합니다.
 4. **Project API keys** 섹션에서:
    - **Project URL** → 이 값이 `SUPABASE_URL`입니다. (예: `https://xxxx.supabase.co`)
-   - **service_role** 키 옆 **Reveal**을 눌러 표시된 긴 문자열 → 이 값이 `SUPABASE_SERVICE_ROLE_KEY`입니다.
+   - **서버용 비밀 키**는 다음 중 하나를 사용합니다.
+     - **새 API 키 사용 시:** **Secret** 키 (`sb_secret_...` 로 시작) 옆 **Reveal** → 이 값을 GitHub Secret `SUPABASE_SERVICE_ROLE_KEY` 또는 `SUPABASE_SECRET_KEY`에 넣습니다.
+     - **레거시 키 사용 시:** **service_role** 키 옆 **Reveal** → 이 값을 `SUPABASE_SERVICE_ROLE_KEY`에 넣습니다.
 
-> **주의:** `service_role` 키는 RLS를 우회할 수 있는 강력한 비밀키입니다.  
+> **"Legacy API keys are disabled" 오류가 나는 경우**  
+> Supabase에서 레거시 키(anon, service_role)를 끈 프로젝트입니다. 같은 **Project Settings → API** 페이지에서 **Secret** 키(`sb_secret_...`)를 복사해, GitHub 리포지토리 Secrets에 **`SUPABASE_SERVICE_ROLE_KEY`** 이름으로 그대로 넣어 주세요. (기존 이름 유지해도 동작합니다.)
+
+> **주의:** Secret / service_role 키는 RLS를 우회할 수 있는 강력한 비밀키입니다.  
 > 브라우저나 앱 코드에 넣지 말고, **GitHub Secrets처럼 서버/CI 전용**으로만 사용하세요.
 
 GitHub 리포지토리에서:

@@ -15,7 +15,10 @@ def get_env(name: str, default: str | None = None) -> str:
 def main() -> None:
     try:
         supabase_url = get_env("SUPABASE_URL")
-        service_role_key = get_env("SUPABASE_SERVICE_ROLE_KEY")
+        # 새 API 키(Secret) 또는 레거시 service_role 키 지원
+        service_role_key = os.getenv("SUPABASE_SECRET_KEY") or os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+        if not service_role_key or not service_role_key.strip():
+            raise ValueError("SUPABASE_SERVICE_ROLE_KEY 또는 SUPABASE_SECRET_KEY 중 하나를 설정해 주세요.")
         table_name = os.getenv("SUPABASE_TABLE", "BulChimBeon")
     except ValueError as e:
         print(f"[BulChimBeon] 환경 변수 오류: {e}", file=sys.stderr)
