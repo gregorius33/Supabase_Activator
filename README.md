@@ -3,7 +3,8 @@
 이 저장소는 **Supabase 프로젝트가 1주일 이상 비활성화되어 일시 중지되는 것**을 막기 위해,
 GitHub Actions와 Python 스크립트로 **주기적으로 Supabase에 간단한 DB 기록을 남기는** 용도의 프로젝트입니다.
 
-- 사용하는 테이블 이름: **`BulChimBeon`**
+- 사용하는 테이블 이름: **`BulChimBeon`** (프로젝트별로 다른 테이블 이름 지정 가능)
+- **단일 프로젝트** 또는 **여러 프로젝트** 모두 지원합니다.
 - 실행 주기(기본): **매주 월요일, 목요일 오전 9시 (한국 시간, KST)**  
   - GitHub Actions cron 기준: `0 0 * * 1,4` (UTC 0시 → KST 9시)
 
@@ -55,11 +56,30 @@ GitHub 리포지토리에서:
 
 1. `Settings` 탭 이동
 2. 왼쪽 메뉴에서 `Secrets and variables` → `Actions` 선택
-3. 아래 이름으로 **Repository secret** 추가
+3. 아래 중 **하나의 방식**으로 설정합니다.
+
+#### 방식 A: 단일 프로젝트 (기존과 동일)
 
 - `SUPABASE_URL` : Supabase 프로젝트 URL
-- `SUPABASE_SERVICE_ROLE_KEY` : 서비스 롤 키
+- `SUPABASE_SERVICE_ROLE_KEY` 또는 `SUPABASE_SECRET_KEY` : 서버용 비밀 키
 - (선택) `SUPABASE_TABLE` : 기본값 `BulChimBeon`을 그대로 쓸 경우 생략 가능
+
+#### 방식 B: 2개 이상의 프로젝트 (다중 프로젝트)
+
+- **`SUPABASE_PROJECTS`** 하나만 추가합니다. 값은 **JSON 배열** 문자열입니다.
+- 각 항목은 `url`, `secret_key` 가 필수이고, `table` 은 선택(기본값 `BulChimBeon`)입니다.
+
+예시 (한 줄로 넣어도 됨):
+
+```json
+[
+  {"url": "https://프로젝트1.supabase.co", "secret_key": "sb_secret_..."},
+  {"url": "https://프로젝트2.supabase.co", "secret_key": "sb_secret_..."}
+]
+```
+
+- `SUPABASE_PROJECTS` 가 설정되어 있으면 **방식 A는 무시**되고, 배열에 적은 모든 프로젝트에 순서대로 UPSERT 요청을 보냅니다.
+- 각 프로젝트의 Supabase 대시보드 → **Project Settings → API**에서 **Project URL**과 **Secret** 키를 복사해 위 형식으로 넣으면 됩니다.
 
 Python 스크립트 `BulChimBeon.py`는 위 값들을 **환경 변수**로부터 읽어와 Supabase REST API를 호출합니다.
 
@@ -69,14 +89,16 @@ Python 스크립트 `BulChimBeon.py`는 위 값들을 **환경 변수**로부터
 
 이 스크립트는 다음과 같이 동작합니다.
 
-1. 환경 변수에서 Supabase URL, Service Role Key, 테이블 이름을 읽습니다.
-2. `SUPABASE_URL/rest/v1/BulChimBeon` 엔드포인트로 **UPSERT** 요청을 보냅니다.
+1. **설정 읽기**
+   - `SUPABASE_PROJECTS` (JSON 배열)가 있으면 → 그 목록에 있는 **모든 프로젝트**에 대해 순서대로 요청을 보냅니다.
+   - 없으면 → 기존처럼 `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`(또는 `SUPABASE_SECRET_KEY`) 로 **단일 프로젝트**만 대상으로 합니다.
+2. 각 대상에 대해 `SUPABASE_URL/rest/v1/테이블명` 엔드포인트로 **UPSERT** 요청을 보냅니다.
 3. 요청 바디에는:
    - `id`: 고정 UUID (한 행만 유지하기 위한 키)
    - `last_ping`: 현재 UTC 시각 (ISO 8601 문자열)
    - `note`: `"GitHub Actions BulChimBeon"` 같은 간단한 문자열
 4. 첫 실행 시 해당 행이 없으면 **INSERT**, 있으면 **UPDATE**되어 행이 늘어나지 않습니다.
-5. HTTP 요청이 실패하면 **비정상 종료(exit code != 0)** 하여 GitHub Actions에서 해당 실행을 **실패(빨간불)** 로 표시하게 합니다.
+5. **다중 프로젝트**인 경우 하나라도 실패하면 전체가 실패(exit code 1)로 처리됩니다.
 
 이렇게 하면:
 
@@ -105,8 +127,9 @@ Python 스크립트 `BulChimBeon.py`는 위 값들을 **환경 변수**로부터
 
 ### 5-1. Supabase에서 확인
 
-- Supabase 대시보드 → Table Editor → `BulChimBeon` 테이블을 열면
-  - `BulChimBeon` 테이블에는 **한 행만** 있으며, 그 행의 `last_ping`이 매 실행 시각으로 갱신됩니다.
+- Supabase 대시보드 → Table Editor → **각 프로젝트**에서 `BulChimBeon` 테이블을 열면
+  - 테이블에는 **한 행만** 있으며, 그 행의 `last_ping`이 매 실행 시각으로 갱신됩니다.
+- **다중 프로젝트**를 쓰는 경우, 모든 프로젝트의 테이블에서 `last_ping`이 갱신되는지 확인하면 됩니다.
 - 월/목 9시(KST) 이후에 `last_ping`이 해당 시각 근처로 바뀌어 있으면 자동 깨우기가 잘 동작하는 것입니다.
 
 ### 5-2. GitHub Actions에서 확인
@@ -134,6 +157,6 @@ GitHub 계정의 **알림 설정**에 따라 실패 시 알림을 받을 수 있
 
 - 실행 주기를 늘리거나 줄이고 싶으면:
   - `BulChimBeon.yml`의 `cron` 값을 조정 (`0 0 * * *` → 매일 09:00 KST 등)
-- 여러 Supabase 프로젝트를 동시에 살려두고 싶으면:
-  - `BulChimBeon.py`에서 URL/KEY 목록을 돌며 여러 프로젝트에 대해 순차적으로 요청 보내도록 확장
+- 프로젝트를 더 추가하려면:
+  - GitHub Secrets의 `SUPABASE_PROJECTS` JSON 배열에 항목을 추가하면 됩니다.
 

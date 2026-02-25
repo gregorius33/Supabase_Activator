@@ -28,8 +28,9 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
-          # 기본값 BulChimBeon을 그대로 사용하지 않고 다른 테이블을 쓰고 싶다면,
-          # 리포지토리 Secrets에 SUPABASE_TABLE을 추가해서 사용 가능
           SUPABASE_TABLE: ${{ secrets.SUPABASE_TABLE }}
+          # 다중 프로젝트: JSON 배열로 설정 시 위 단일 설정보다 우선합니다.
+          # 예: [{"url":"https://a.supabase.co","secret_key":"sb_secret_..."},{"url":"https://b.supabase.co","secret_key":"sb_secret_..."}]
+          SUPABASE_PROJECTS: ${{ secrets.SUPABASE_PROJECTS }}
         run: python BulChimBeon.py
 
