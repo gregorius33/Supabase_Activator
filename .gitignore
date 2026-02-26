@@ -2,6 +2,8 @@
 Supabase.txt
 *.supabase.local.txt
 
+git_command.md
+
 # Python
 __pycache__/
 *.py[cod]

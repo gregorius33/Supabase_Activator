@@ -4,7 +4,8 @@ on:
   schedule:
     # 매주 월요일, 목요일 00:00 UTC (KST 09:00)
     #- cron: "0 0 * * 1,4"
-    - cron: "15 * * * *"
+    # 매일 19:38 UTC (KST 04:38) (지연/Skip 현상 대비 부하 적은 시각 선택)
+    - cron: "38 19 * * *"
   # 수동 실행용 트리거 (테스트 시 편리)
   workflow_dispatch:
 
