@@ -4,7 +4,7 @@ on:
   schedule:
     # 매주 월요일, 목요일 00:00 UTC (KST 09:00)
     #- cron: "0 0 * * 1,4"
-    - cron: "15 * * * *"
+    - cron: "15,47 * * * *"
   # 수동 실행용 트리거 (테스트 시 편리)
   workflow_dispatch:
 
