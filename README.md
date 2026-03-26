@@ -88,7 +88,7 @@ GitHub 리포지토리에서:
 ]
 ```
 
-- `SUPABASE_PROJECTS` 가 설정되어 있으면 **방식 A는 무시**되고, 배열에 적은 모든 프로젝트에 순서대로 UPSERT 요청을 보냅니다.
+- `SUPABASE_PROJECTS` 가 설정되어 있으면 **방식 A는 무시**되고, 배열에 적은 모든 프로젝트에 대해 **(1) 10일 평균 조회 → (2) 요약 UPSERT → (3) N건 INSERT → (4) 전월 DELETE** 를 순서대로 수행합니다.
 - 각 프로젝트의 Supabase 대시보드 → **Project Settings → API**에서 **Project URL**과 **Secret** 키를 복사해 위 형식으로 넣으면 됩니다.
 
 Python 스크립트 `BulChimBeon.py`는 위 값들을 **환경 변수**로부터 읽어와 Supabase REST API를 호출합니다.
@@ -139,7 +139,7 @@ Python 스크립트 `BulChimBeon.py`는 위 값들을 **환경 변수**로부터
   - `id = 22222222-…` 요약 행의 `note`에 **최근 10일 평균 insert 시각(UTC)** 이 반영되는지,
   - 실행 직후 **새 행이 여러 건** 쌓였는지(기본 +20건),
   - 매달 초 이후 **전월 데이터가 삭제**되었는지 확인할 수 있습니다.
-- 월/목 9시(KST) 이후에 `last_ping`이 해당 시각 근처로 바뀌어 있으면 자동 깨우기가 잘 동작하는 것입니다.
+- `last_ping`은 요약행(`id = 2222...`)과 2단계로 INSERT된 행들에 모두 기록됩니다.
 
 ### 5-2. GitHub Actions에서 확인
 
