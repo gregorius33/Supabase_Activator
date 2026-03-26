@@ -35,5 +35,7 @@ jobs:
           # 다중 프로젝트: JSON 배열로 설정 시 위 단일 설정보다 우선합니다.
           # 예: [{"url":"https://a.supabase.co","secret_key":"sb_secret_..."},{"url":"https://b.supabase.co","secret_key":"sb_secret_..."}]
           SUPABASE_PROJECTS: ${{ secrets.SUPABASE_PROJECTS }}
+          # (선택) 2단계 INSERT 건수. 미설정 시 20. Repository variables 로도 설정 가능.
+          BULCHIMBEON_BATCH_INSERT_COUNT: ${{ vars.BULCHIMBEON_BATCH_INSERT_COUNT }}
         run: python BulChimBeon.py
 

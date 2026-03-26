@@ -19,14 +19,24 @@ Supabase 대시보드에서 **SQL Editor**를 열고, 아래와 비슷한 SQL을
 create table if not exists public."BulChimBeon" (
   id uuid primary key default uuid_generate_v4(),
   last_ping timestamptz not null,
-  note text
+  note text,
+  created_at timestamptz not null default now()
 );
 ```
 
+**이미 테이블만 만들어 둔 경우** `created_at` 컬럼 추가:
+
+```sql
+alter table public."BulChimBeon"
+  add column if not exists created_at timestamptz not null default now();
+```
+
 - 스키마는 기본값인 `public`을 가정합니다.
-- **동작:** 첫 실행 시 한 행을 **INSERT**하고, 이후 실행부터는 같은 행을 **UPDATE**합니다.  
-  따라서 테이블에는 항상 **한 행만** 유지되며, `last_ping`이 매 실행 시각(UTC)으로 갱신됩니다.
-- Supabase REST API의 UPSERT(`Prefer: resolution=merge-duplicates`)를 사용하며, 고정된 `id` 한 개로 같은 행을 덮어씁니다.
+- **스크립트 동작(실행마다, 프로젝트별):**
+  1. **최근 10일** 동안 insert된 행(`created_at` 기준) 중, 요약 행(`id = 22222222-2222-2222-2222-222222222222`)은 제외하고 **`created_at`의 epoch 평균**을 구합니다.  
+     그 값을 ISO 문자열로 넣은 `note`와 함께 **요약 행 1건을 UPSERT**합니다. (10일 내 데이터가 없으면 `note`에 안내 문구)
+  2. **새 행 20건**을 일괄 INSERT합니다 (`id`는 DB 기본값). 건수는 환경 변수 `BULCHIMBEON_BATCH_INSERT_COUNT`로 변경 가능(기본 20).
+  3. **직전 달력달**에 `created_at`이 속한 행을 **DELETE**합니다. (`created_at`이 `[전월 1일 0시 UTC, 당월 1일 0시 UTC)` 인 행)
 
 > RLS(행 레벨 보안)를 사용하는 경우, 이 프로젝트는 **Service Role Key**로만 접근합니다.  
 > Service Role Key는 서버용 비밀키이므로, **절대 클라이언트 코드에 넣지 말고 GitHub Secrets로만 사용**하세요.
@@ -90,15 +100,13 @@ Python 스크립트 `BulChimBeon.py`는 위 값들을 **환경 변수**로부터
 이 스크립트는 다음과 같이 동작합니다.
 
 1. **설정 읽기**
-   - `SUPABASE_PROJECTS` (JSON 배열)가 있으면 → 그 목록에 있는 **모든 프로젝트**에 대해 순서대로 요청을 보냅니다.
-   - 없으면 → 기존처럼 `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`(또는 `SUPABASE_SECRET_KEY`) 로 **단일 프로젝트**만 대상으로 합니다.
-2. 각 대상에 대해 `SUPABASE_URL/rest/v1/테이블명` 엔드포인트로 **UPSERT** 요청을 보냅니다.
-3. 요청 바디에는:
-   - `id`: 고정 UUID (한 행만 유지하기 위한 키)
-   - `last_ping`: 현재 UTC 시각 (ISO 8601 문자열)
-   - `note`: `"GitHub Actions BulChimBeon"` 같은 간단한 문자열
-4. 첫 실행 시 해당 행이 없으면 **INSERT**, 있으면 **UPDATE**되어 행이 늘어나지 않습니다.
-5. **다중 프로젝트**인 경우 하나라도 실패하면 전체가 실패(exit code 1)로 처리됩니다.
+   - `SUPABASE_PROJECTS` (JSON 배열)가 있으면 → 그 목록에 있는 **모든 프로젝트**에 대해 순서대로 **아래 1~3단계**를 수행합니다.
+   - 없으면 → `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`(또는 `SUPABASE_SECRET_KEY`) 로 **단일 프로젝트**만 대상으로 합니다.
+2. **프로젝트당 처리 순서**
+   - **1단계:** GET으로 최근 10일 `created_at` 조회(요약 행 id 제외) → 평균 시각 계산 → 요약 행(`HEARTBEAT_SUMMARY_ROW_ID`) **UPSERT**
+   - **2단계:** 동일 테이블에 **N건 INSERT** (기본 N=20, `BULCHIMBEON_BATCH_INSERT_COUNT`)
+   - **3단계:** **전월** `created_at` 구간 **DELETE**
+3. **다중 프로젝트**인 경우 하나라도 실패하면 전체가 실패(exit code 1)로 처리됩니다.
 
 이렇게 하면:
 
@@ -128,8 +136,9 @@ Python 스크립트 `BulChimBeon.py`는 위 값들을 **환경 변수**로부터
 ### 5-1. Supabase에서 확인
 
 - Supabase 대시보드 → Table Editor → **각 프로젝트**에서 `BulChimBeon` 테이블을 열면
-  - 테이블에는 **한 행만** 있으며, 그 행의 `last_ping`이 매 실행 시각으로 갱신됩니다.
-- **다중 프로젝트**를 쓰는 경우, 모든 프로젝트의 테이블에서 `last_ping`이 갱신되는지 확인하면 됩니다.
+  - `id = 22222222-…` 요약 행의 `note`에 **최근 10일 평균 insert 시각(UTC)** 이 반영되는지,
+  - 실행 직후 **새 행이 여러 건** 쌓였는지(기본 +20건),
+  - 매달 초 이후 **전월 데이터가 삭제**되었는지 확인할 수 있습니다.
 - 월/목 9시(KST) 이후에 `last_ping`이 해당 시각 근처로 바뀌어 있으면 자동 깨우기가 잘 동작하는 것입니다.
 
 ### 5-2. GitHub Actions에서 확인
